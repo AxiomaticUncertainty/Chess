@@ -222,7 +222,7 @@ var BoardUX = /** @class */ (function () {
         var x = Math.floor(8 * event.clientX / 931);
         var y = Math.floor(8 * (1 - (event.clientY / 931)));
         var pos = new Coordinate(x, y);
-        if (Math.min(7, Math.max(0, pos.x)) == pos.x && Math.min(7, Math.max(0, pos.y)) == pos.y) {
+        if (Math.min(7, Math.max(0, pos.x)) == pos.x && Math.min(7, Math.max(0, pos.y)) == pos.y && !this.gameState.hasMate(true) && !this.gameState.hasMate(false)) {
             var p = this.gameState.getPiece(pos);
             if (p != null && p.getColor()) {
                 this.selected = pos;
@@ -239,7 +239,7 @@ var BoardUX = /** @class */ (function () {
                     this.gameState.getPiece(pos).setPosition(pos);
                     this.gameState.updateMoves();
                     this.drawBoard();
-                    if (this.gameState.hasMate(true)) {
+                    if (this.gameState.hasMate(false)) {
                         console.log("Checkmate!");
                     }
                     else {
@@ -251,7 +251,7 @@ var BoardUX = /** @class */ (function () {
     };
     BoardUX.prototype.opponentMove = function () {
         this.opponent.makeMove(this.gameState);
-        if (this.gameState.hasMate(false)) {
+        if (this.gameState.hasMate(true)) {
             console.log("Checkmate!");
         }
         this.drawBoard();
@@ -324,6 +324,10 @@ var AI = /** @class */ (function () {
                 }
             }
         }
+        if (gameState.hasMate(true))
+            score -= 1000;
+        if (gameState.hasMate(false))
+            score += 1000;
         return score;
     };
     AI.prototype.makeMove = function (gameState) {
