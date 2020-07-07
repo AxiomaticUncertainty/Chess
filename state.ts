@@ -335,6 +335,20 @@ export class Board {
         return res;
     }
 
+    hasStalemate(color: boolean) {
+        let mirror: Board = this.copy();
+        let res: boolean = !mirror.hasCheck(color);
+        if (res) {
+            mirror.updateMoves();
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    if (mirror.getPiece(new Coordinate(i, j)) != null && mirror.getPiece(new Coordinate(i, j)).getColor() == color && mirror.getPiece(new Coordinate(i, j)).getMoves().length > 0) res = false;
+                }
+            }
+        }
+        return res;
+    }
+
     setPiece(position: Coordinate, piece: Piece) {
         this.state[position.x][position.y] = piece;
     }
