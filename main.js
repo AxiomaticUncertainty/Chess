@@ -3,19 +3,14 @@ exports.__esModule = true;
 var state_1 = require("./state");
 var world = new state_1.Board();
 world.updateMoves();
-var bot = new state_1.AI(3);
-var game = new state_1.BoardUX(931, world, bot);
+var bot = new state_1.AI(1);
+var game = new state_1.BoardUX(Math.min(window.innerHeight, window.innerWidth), world, bot);
 game.drawBoard();
-// for (let i = 0; i < 8; i++) {
-//     for (let j = 0; j < 8; j++) {
-//         let p: Piece = world.getPiece(new Coordinate(i, j));
-//         if (p != null) {
-//             p.getMoves().forEach((move: Coordinate) => {
-//                 console.log(move);
-//             });
-//         }
-//     }
-// }
+window.onresize = function (e) {
+    game.resize(Math.min(window.innerHeight, window.innerWidth));
+    game.drawBoard();
+};
+// TODO ADD TWO-PLAYER MODE
 function drawBoard(size, board) {
     var Pieces;
     (function (Pieces) {

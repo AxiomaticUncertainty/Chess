@@ -14,13 +14,16 @@ var BoardUX = /** @class */ (function () {
             this.opponent = bot;
         }
         else {
-            this.opponent = new AI(2);
+            this.opponent = new AI(1);
         }
         this.registerListener();
     }
+    BoardUX.prototype.resize = function (size) {
+        this.size = size;
+    };
     BoardUX.prototype.drawBoard = function (move, piece) {
         var boardDiv = document.getElementById("board");
-        boardDiv.innerHTML = '<img src="http://images.chesscomfiles.com/chess-themes/boards/green/76.png" style="z-index: -1; position: fixed; left: 0; bottom: 0; height: 931px; margin: 0; padding: 0"/>';
+        boardDiv.innerHTML = '<img src="http://images.chesscomfiles.com/chess-themes/boards/green/76.png" style="z-index: -1; position: fixed; left: 0; bottom: 0; height:' + this.size + 'px; margin: 0; padding: 0"/>';
         var Pieces;
         (function (Pieces) {
             Pieces["wPawn"] = "images.chesscomfiles.com/chess-themes/pieces/neo/150/wp.png";
@@ -137,8 +140,8 @@ var BoardUX = /** @class */ (function () {
     BoardUX.prototype.onClick = function (event) {
         var _this = this;
         document.getElementById("highlight").innerHTML = "";
-        var x = Math.floor(8 * event.clientX / 931);
-        var y = Math.floor(8 * (1 - (event.clientY / 931)));
+        var x = Math.floor(8 * event.clientX / this.size);
+        var y = Math.floor(8 * (1 - (event.clientY / this.size)));
         var pos = new Coordinate(x, y);
         if (!(this.selected == null) && pos.x == this.selected.x && pos.y == this.selected.y) {
             this.selected = null;
@@ -155,7 +158,7 @@ var BoardUX = /** @class */ (function () {
                 sqr.style.backgroundColor = "yellow";
                 highlight_1.appendChild(sqr);
                 this.gameState.getPiece(this.selected).getMoves().forEach(function (move) {
-                    var size = 38;
+                    var size = _this.size * 38 / 931;
                     var hint = document.createElement("div");
                     hint.setAttribute("style", "z-index: 0; position: fixed; left: " + (move.x * _this.size / 8 + _this.size / 16 - size / 2) + "px; bottom: " + (move.y * _this.size / 8 + _this.size / 16 - size / 2) + "px; width: " + size + "px; height: " + size + "px");
                     hint.style.opacity = "0.2";
@@ -272,22 +275,35 @@ var AI = /** @class */ (function () {
         return score;
     };
     AI.prototype.makeMove = function (gameState) {
+        var res = this.minimax(gameState, this.depth, false);
+        gameState.setPiece(res.to, gameState.getPiece(res.from));
+        gameState.setPiece(res.from, null);
+        gameState.getPiece(res.to).setPosition(res.to);
+        gameState.updateMoves();
+        return {
+            move: res.from,
+            piece: gameState.getPiece(res.to)
+        };
+    };
+    AI.prototype.minimax = function (gameState, depth, maximize) {
+        // minimax all positions and choose the max/min
+        // if depth == 1 directly return max/min move
         var maxMove;
         var current;
-        var max;
+        var best;
         var _loop_1 = function (i) {
             var _loop_2 = function (j) {
                 var p = gameState.getPiece(new Coordinate(i, j));
-                if (p != null && !p.getColor()) {
+                if (p != null && p.getColor() == maximize) {
                     p.moves.forEach(function (move) {
                         var mirror = gameState.copy();
                         mirror.setPiece(move, mirror.getPiece(new Coordinate(i, j)));
                         mirror.setPiece(new Coordinate(i, j), null);
                         mirror.getPiece(move).setPosition(move);
                         mirror.updateMoves();
-                        var res = this.evaluate(mirror);
-                        if (!max || -res > max) {
-                            max = -res;
+                        var res = depth == 1 ? this.evaluate(mirror) : this.minimax(mirror, depth - 1, !maximize).eval;
+                        if (!best || ((maximize && res > best) || (!maximize && res < best))) {
+                            best = res;
                             current = new Coordinate(i, j);
                             maxMove = move;
                         }
@@ -302,13 +318,10 @@ var AI = /** @class */ (function () {
         for (var i = 0; i < 8; i++) {
             _loop_1(i);
         }
-        gameState.setPiece(maxMove, gameState.getPiece(current));
-        gameState.setPiece(current, null);
-        gameState.getPiece(maxMove).setPosition(maxMove);
-        gameState.updateMoves();
         return {
-            move: current,
-            piece: gameState.getPiece(maxMove)
+            from: current,
+            to: maxMove,
+            eval: best
         };
     };
     return AI;

@@ -14,14 +14,18 @@ export class BoardUX {
         if (bot) {
             this.opponent = bot;
         } else {
-            this.opponent = new AI(2);
+            this.opponent = new AI(1);
         }
         this.registerListener();
     }
 
+    resize(size: number) {
+        this.size = size;
+    }
+
     drawBoard(move?: Coordinate, piece?: Piece) {
         let boardDiv = document.getElementById("board");
-        boardDiv.innerHTML = '<img src="http://images.chesscomfiles.com/chess-themes/boards/green/76.png" style="z-index: -1; position: fixed; left: 0; bottom: 0; height: 931px; margin: 0; padding: 0"/>';
+        boardDiv.innerHTML = '<img src="http://images.chesscomfiles.com/chess-themes/boards/green/76.png" style="z-index: -1; position: fixed; left: 0; bottom: 0; height:' + this.size + 'px; margin: 0; padding: 0"/>';
         enum Pieces {
             wPawn = "images.chesscomfiles.com/chess-themes/pieces/neo/150/wp.png",
             wKing = "images.chesscomfiles.com/chess-themes/pieces/neo/150/wk.png",
@@ -133,8 +137,8 @@ export class BoardUX {
     // Model-view-controller
     onClick(event: MouseEvent) {
         document.getElementById("highlight").innerHTML = "";
-        let x = Math.floor(8 * event.clientX / 931);
-        let y = Math.floor(8 * (1 - (event.clientY / 931)));
+        let x = Math.floor(8 * event.clientX / this.size);
+        let y = Math.floor(8 * (1 - (event.clientY / this.size)));
         let pos: Coordinate = new Coordinate(x, y);
         if (!(this.selected == null) && pos.x == this.selected.x && pos.y == this.selected.y) {
             this.selected = null;
@@ -154,7 +158,7 @@ export class BoardUX {
                 highlight.appendChild(sqr);
 
                 this.gameState.getPiece(this.selected).getMoves().forEach((move: Coordinate) => {
-                    const size = 38;
+                    const size = this.size * 38 / 931;
                     let hint = document.createElement("div");
                     hint.setAttribute("style", "z-index: 0; position: fixed; left: " + (move.x * this.size / 8 + this.size / 16 - size / 2) + "px; bottom: " + (move.y * this.size / 8 + this.size / 16 - size / 2) + "px; width: " + size + "px; height: " + size + "px");
                     hint.style.opacity = "0.2";
@@ -262,13 +266,27 @@ export class AI {
     }
 
     makeMove(gameState: Board) {
+        let res = this.minimax(gameState, this.depth, false);
+        gameState.setPiece(res.to, gameState.getPiece(res.from));
+        gameState.setPiece(res.from, null);
+        gameState.getPiece(res.to).setPosition(res.to);
+        gameState.updateMoves();
+        return {
+            move: res.from,
+            piece: gameState.getPiece(res.to)
+        };
+    }
+
+    minimax(gameState: Board, depth: number, maximize: boolean) {
+        // minimax all positions and choose the max/min
+        // if depth == 1 directly return max/min move
         let maxMove: Coordinate;
         let current: Coordinate;
-        let max: number;
+        let best: number;
         for (let i = 0; i < 8; i++) {
             for (let j = 0; j < 8; j++) {
                 let p: Piece = gameState.getPiece(new Coordinate(i, j));
-                if (p != null && !p.getColor()) {
+                if (p != null && p.getColor() == maximize) {
                     p.moves.forEach(function (move: Coordinate) {
                         let mirror: Board = gameState.copy();
                         mirror.setPiece(move, mirror.getPiece(new Coordinate(i, j)));
@@ -276,9 +294,9 @@ export class AI {
                         mirror.getPiece(move).setPosition(move);
                         mirror.updateMoves();
                         
-                        let res: number = this.evaluate(mirror);
-                        if (!max || -res > max) {
-                            max = -res;
+                        let res: number = depth == 1 ? this.evaluate(mirror) : this.minimax(mirror, depth - 1, !maximize).eval;
+                        if (!best || ((maximize && res > best) || (!maximize && res < best))) {
+                            best = res;
                             current = new Coordinate(i, j);
                             maxMove = move;
                         }
@@ -286,13 +304,10 @@ export class AI {
                 }
             }
         }
-        gameState.setPiece(maxMove, gameState.getPiece(current));
-        gameState.setPiece(current, null);
-        gameState.getPiece(maxMove).setPosition(maxMove);
-        gameState.updateMoves();
         return {
-            move: current,
-            piece: gameState.getPiece(maxMove)
+            from: current,
+            to: maxMove,
+            eval: best
         };
     }
 }
