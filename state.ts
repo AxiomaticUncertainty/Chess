@@ -20,7 +20,8 @@ export class BoardUX {
     }
 
     drawBoard() {
-        document.body.innerHTML = '<img src="http://images.chesscomfiles.com/chess-themes/boards/green/76.png" style="position: fixed; left: 0; bottom: 0; height: 931px; margin: 0; padding: 0"/>';
+        let boardDiv = document.getElementById("board");
+        boardDiv.innerHTML = '<img src="http://images.chesscomfiles.com/chess-themes/boards/green/76.png" style="z-index: -1; position: fixed; left: 0; bottom: 0; height: 931px; margin: 0; padding: 0"/>';
         enum Pieces {
             wPawn = "images.chesscomfiles.com/chess-themes/pieces/neo/150/wp.png",
             wKing = "images.chesscomfiles.com/chess-themes/pieces/neo/150/wk.png",
@@ -90,13 +91,8 @@ export class BoardUX {
                     url = "http://" + url;
                     let img: HTMLImageElement = new Image();
                     img.src = url.toString();
-                    // img.setAttribute("position", "fixed");
-                    // img.setAttribute("left", i * size / 8 + "px");
-                    // img.setAttribute("bottom", j * size / 8 + "px");
-                    // img.setAttribute("width", size / 8 + "px");
-                    // img.setAttribute("height", size / 8 + "px");
-                    img.setAttribute("style", "position: fixed; left: " + i * this.size / 8 + "px" + "; bottom: " + j * this.size / 8 + "px" + "; width: " + this.size / 8 + "px" + "; height:" + this.size / 8 + "px");
-                    document.body.appendChild(img);
+                    img.setAttribute("style", "z-index: 1; position: fixed; left: " + i * this.size / 8 + "px" + "; bottom: " + j * this.size / 8 + "px" + "; width: " + this.size / 8 + "px" + "; height:" + this.size / 8 + "px");
+                    boardDiv.appendChild(img);
                 }
             }
         }
@@ -108,13 +104,36 @@ export class BoardUX {
 
     // Model-view-controller
     onClick(event: MouseEvent) {
+        document.getElementById("highlight").innerHTML = "";
         let x = Math.floor(8 * event.clientX / 931);
         let y = Math.floor(8 * (1 - (event.clientY / 931)));
         let pos: Coordinate = new Coordinate(x, y);
+        if (!(this.selected == null) && pos.x == this.selected.x && pos.y == this.selected.y) {
+            this.selected = null;
+            return;
+        }
+
         if (Math.min(7, Math.max(0, pos.x)) == pos.x && Math.min(7, Math.max(0, pos.y)) == pos.y && !this.gameState.hasMate(true) && !this.gameState.hasMate(false)) {
             let p: Piece = this.gameState.getPiece(pos);
             if (p != null && p.getColor()) {
                 this.selected = pos;
+                let highlight = document.getElementById("highlight");
+                
+                let sqr = document.createElement("div");
+                sqr.setAttribute("style", "z-index: 0; position: fixed; left:" + pos.x * this.size / 8 + "px; bottom: " + pos.y * this.size / 8 + "px; width: " + this.size / 8 + "px; height: " + this.size / 8 + "px");
+                sqr.style.opacity = "0.5";
+                sqr.style.backgroundColor = "yellow";
+                highlight.appendChild(sqr);
+
+                this.gameState.getPiece(this.selected).getMoves().forEach((move: Coordinate) => {
+                    const size = 38;
+                    let hint = document.createElement("div");
+                    hint.setAttribute("style", "z-index: 0; position: fixed; left: " + (move.x * this.size / 8 + this.size / 16 - size / 2) + "px; bottom: " + (move.y * this.size / 8 + this.size / 16 - size / 2) + "px; width: " + size + "px; height: " + size + "px");
+                    hint.style.opacity = "0.2";
+                    hint.style.backgroundColor = "black";
+                    hint.style.borderRadius = "50%";
+                    highlight.appendChild(hint);
+                });
             } else if (this.selected != null && this.gameState.getPiece(this.selected) != null) {
                 let hasMove: boolean = false;
                 this.gameState.getPiece(this.selected).getMoves().forEach(function (move: Coordinate) {
@@ -126,11 +145,14 @@ export class BoardUX {
                     this.gameState.getPiece(pos).setPosition(pos);
                     this.gameState.updateMoves();
                     this.drawBoard();
+                    document.getElementById("highlight").innerHTML = "";
                     if (this.gameState.hasMate(false)) {
                         console.log("Checkmate!");
                     } else {
                         this.opponentMove();
                     }
+                } else {
+                    this.selected = null;
                 }
             }
         }

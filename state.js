@@ -19,7 +19,8 @@ var BoardUX = /** @class */ (function () {
         this.registerListener();
     }
     BoardUX.prototype.drawBoard = function () {
-        document.body.innerHTML = '<img src="http://images.chesscomfiles.com/chess-themes/boards/green/76.png" style="position: fixed; left: 0; bottom: 0; height: 931px; margin: 0; padding: 0"/>';
+        var boardDiv = document.getElementById("board");
+        boardDiv.innerHTML = '<img src="http://images.chesscomfiles.com/chess-themes/boards/green/76.png" style="z-index: -1; position: fixed; left: 0; bottom: 0; height: 931px; margin: 0; padding: 0"/>';
         var Pieces;
         (function (Pieces) {
             Pieces["wPawn"] = "images.chesscomfiles.com/chess-themes/pieces/neo/150/wp.png";
@@ -95,13 +96,8 @@ var BoardUX = /** @class */ (function () {
                     url = "http://" + url;
                     var img = new Image();
                     img.src = url.toString();
-                    // img.setAttribute("position", "fixed");
-                    // img.setAttribute("left", i * size / 8 + "px");
-                    // img.setAttribute("bottom", j * size / 8 + "px");
-                    // img.setAttribute("width", size / 8 + "px");
-                    // img.setAttribute("height", size / 8 + "px");
-                    img.setAttribute("style", "position: fixed; left: " + i * this.size / 8 + "px" + "; bottom: " + j * this.size / 8 + "px" + "; width: " + this.size / 8 + "px" + "; height:" + this.size / 8 + "px");
-                    document.body.appendChild(img);
+                    img.setAttribute("style", "z-index: 1; position: fixed; left: " + i * this.size / 8 + "px" + "; bottom: " + j * this.size / 8 + "px" + "; width: " + this.size / 8 + "px" + "; height:" + this.size / 8 + "px");
+                    boardDiv.appendChild(img);
                 }
             }
         }
@@ -111,13 +107,34 @@ var BoardUX = /** @class */ (function () {
     };
     // Model-view-controller
     BoardUX.prototype.onClick = function (event) {
+        var _this = this;
+        document.getElementById("highlight").innerHTML = "";
         var x = Math.floor(8 * event.clientX / 931);
         var y = Math.floor(8 * (1 - (event.clientY / 931)));
         var pos = new Coordinate(x, y);
+        if (!(this.selected == null) && pos.x == this.selected.x && pos.y == this.selected.y) {
+            this.selected = null;
+            return;
+        }
         if (Math.min(7, Math.max(0, pos.x)) == pos.x && Math.min(7, Math.max(0, pos.y)) == pos.y && !this.gameState.hasMate(true) && !this.gameState.hasMate(false)) {
             var p = this.gameState.getPiece(pos);
             if (p != null && p.getColor()) {
                 this.selected = pos;
+                var highlight_1 = document.getElementById("highlight");
+                var sqr = document.createElement("div");
+                sqr.setAttribute("style", "z-index: 0; position: fixed; left:" + pos.x * this.size / 8 + "px; bottom: " + pos.y * this.size / 8 + "px; width: " + this.size / 8 + "px; height: " + this.size / 8 + "px");
+                sqr.style.opacity = "0.5";
+                sqr.style.backgroundColor = "yellow";
+                highlight_1.appendChild(sqr);
+                this.gameState.getPiece(this.selected).getMoves().forEach(function (move) {
+                    var size = 38;
+                    var hint = document.createElement("div");
+                    hint.setAttribute("style", "z-index: 0; position: fixed; left: " + (move.x * _this.size / 8 + _this.size / 16 - size / 2) + "px; bottom: " + (move.y * _this.size / 8 + _this.size / 16 - size / 2) + "px; width: " + size + "px; height: " + size + "px");
+                    hint.style.opacity = "0.2";
+                    hint.style.backgroundColor = "black";
+                    hint.style.borderRadius = "50%";
+                    highlight_1.appendChild(hint);
+                });
             }
             else if (this.selected != null && this.gameState.getPiece(this.selected) != null) {
                 var hasMove_1 = false;
@@ -131,12 +148,16 @@ var BoardUX = /** @class */ (function () {
                     this.gameState.getPiece(pos).setPosition(pos);
                     this.gameState.updateMoves();
                     this.drawBoard();
+                    document.getElementById("highlight").innerHTML = "";
                     if (this.gameState.hasMate(false)) {
                         console.log("Checkmate!");
                     }
                     else {
                         this.opponentMove();
                     }
+                }
+                else {
+                    this.selected = null;
                 }
             }
         }
@@ -335,6 +356,20 @@ var Board = /** @class */ (function () {
     Board.prototype.hasMate = function (color) {
         var mirror = this.copy();
         var res = mirror.hasCheck(color);
+        if (res) {
+            mirror.updateMoves();
+            for (var i = 0; i < 8; i++) {
+                for (var j = 0; j < 8; j++) {
+                    if (mirror.getPiece(new Coordinate(i, j)) != null && mirror.getPiece(new Coordinate(i, j)).getColor() == color && mirror.getPiece(new Coordinate(i, j)).getMoves().length > 0)
+                        res = false;
+                }
+            }
+        }
+        return res;
+    };
+    Board.prototype.hasStalemate = function (color) {
+        var mirror = this.copy();
+        var res = !mirror.hasCheck(color);
         if (res) {
             mirror.updateMoves();
             for (var i = 0; i < 8; i++) {
