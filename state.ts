@@ -19,7 +19,7 @@ export class BoardUX {
         this.registerListener();
     }
 
-    drawBoard() {
+    drawBoard(move?: Coordinate, piece?: Piece) {
         let boardDiv = document.getElementById("board");
         boardDiv.innerHTML = '<img src="http://images.chesscomfiles.com/chess-themes/boards/green/76.png" style="z-index: -1; position: fixed; left: 0; bottom: 0; height: 931px; margin: 0; padding: 0"/>';
         enum Pieces {
@@ -40,6 +40,9 @@ export class BoardUX {
         for (let i = 0; i < 8; i++) {
             for (let j = 0; j < 8; j++) {
                 let p: Piece = this.gameState.getPiece(new Coordinate(i, j));
+                let animate: boolean = false;
+                if (move && piece && p == piece) animate = true;
+
                 if (p != null) {
                     let url: String;
                     switch (p.constructor) {
@@ -92,10 +95,35 @@ export class BoardUX {
                     let img: HTMLImageElement = new Image();
                     img.src = url.toString();
                     img.setAttribute("style", "z-index: 1; position: fixed; left: " + i * this.size / 8 + "px" + "; bottom: " + j * this.size / 8 + "px" + "; width: " + this.size / 8 + "px" + "; height:" + this.size / 8 + "px");
+                    if (animate) {
+                        img.id = "moved"
+                        img.style.left = (move.x * this.size / 8) + "px";
+                        img.style.bottom = (move.y * this.size / 8) + "px";
+                    }
                     boardDiv.appendChild(img);
                 }
             }
         }
+
+        if (move && piece) this.animateMove(move, piece.position, document.getElementById("moved"));
+    }
+
+    animateMove(from: Coordinate, to: Coordinate, img: HTMLElement) {
+        const steps = 50;
+        let x = from.x * this.size / 8;
+        let y = from.y * this.size / 8;
+        let deltaX = (to.x - from.x) * this.size / (8 * steps);
+        let deltaY = (to.y - from.y) * this.size / (8 * steps);
+        let step = 0;
+        let ctr = setInterval(() => {
+            if (step > steps) { // account for floating pt errors
+                clearInterval(ctr);
+            } else {
+                img.style.left = (x + deltaX * step) + "px";
+                img.style.bottom = (y + deltaY * step) + "px";
+                step++;
+            }
+        }, 1);
     }
     
     registerListener() {
@@ -159,11 +187,11 @@ export class BoardUX {
     }
 
     opponentMove() {
-        this.opponent.makeMove(this.gameState);
+        let res = this.opponent.makeMove(this.gameState);
         if (this.gameState.hasMate(true)) {
             console.log("Checkmate!");
         }
-        this.drawBoard();
+        this.drawBoard(res.move, res.piece);
     }
 }
 
@@ -262,6 +290,10 @@ export class AI {
         gameState.setPiece(current, null);
         gameState.getPiece(maxMove).setPosition(maxMove);
         gameState.updateMoves();
+        return {
+            move: current,
+            piece: gameState.getPiece(maxMove)
+        };
     }
 }
 

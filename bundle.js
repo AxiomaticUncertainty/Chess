@@ -126,7 +126,7 @@ var BoardUX = /** @class */ (function () {
         }
         this.registerListener();
     }
-    BoardUX.prototype.drawBoard = function () {
+    BoardUX.prototype.drawBoard = function (move, piece) {
         var boardDiv = document.getElementById("board");
         boardDiv.innerHTML = '<img src="http://images.chesscomfiles.com/chess-themes/boards/green/76.png" style="z-index: -1; position: fixed; left: 0; bottom: 0; height: 931px; margin: 0; padding: 0"/>';
         var Pieces;
@@ -147,6 +147,9 @@ var BoardUX = /** @class */ (function () {
         for (var i = 0; i < 8; i++) {
             for (var j = 0; j < 8; j++) {
                 var p = this.gameState.getPiece(new Coordinate(i, j));
+                var animate = false;
+                if (move && piece && p == piece)
+                    animate = true;
                 if (p != null) {
                     var url = void 0;
                     switch (p.constructor) {
@@ -205,10 +208,35 @@ var BoardUX = /** @class */ (function () {
                     var img = new Image();
                     img.src = url.toString();
                     img.setAttribute("style", "z-index: 1; position: fixed; left: " + i * this.size / 8 + "px" + "; bottom: " + j * this.size / 8 + "px" + "; width: " + this.size / 8 + "px" + "; height:" + this.size / 8 + "px");
+                    if (animate) {
+                        img.id = "moved";
+                        img.style.left = (move.x * this.size / 8) + "px";
+                        img.style.bottom = (move.y * this.size / 8) + "px";
+                    }
                     boardDiv.appendChild(img);
                 }
             }
         }
+        if (move && piece)
+            this.animateMove(move, piece.position, document.getElementById("moved"));
+    };
+    BoardUX.prototype.animateMove = function (from, to, img) {
+        var steps = 50;
+        var x = from.x * this.size / 8;
+        var y = from.y * this.size / 8;
+        var deltaX = (to.x - from.x) * this.size / (8 * steps);
+        var deltaY = (to.y - from.y) * this.size / (8 * steps);
+        var step = 0;
+        var ctr = setInterval(function () {
+            if (step > steps) { // account for floating pt errors
+                clearInterval(ctr);
+            }
+            else {
+                img.style.left = (x + deltaX * step) + "px";
+                img.style.bottom = (y + deltaY * step) + "px";
+                step++;
+            }
+        }, 1);
     };
     BoardUX.prototype.registerListener = function () {
         document.body.addEventListener("click", this.onClick.bind(this), false);
@@ -271,11 +299,11 @@ var BoardUX = /** @class */ (function () {
         }
     };
     BoardUX.prototype.opponentMove = function () {
-        this.opponent.makeMove(this.gameState);
+        var res = this.opponent.makeMove(this.gameState);
         if (this.gameState.hasMate(true)) {
             console.log("Checkmate!");
         }
-        this.drawBoard();
+        this.drawBoard(res.move, res.piece);
     };
     return BoardUX;
 }());
@@ -386,6 +414,10 @@ var AI = /** @class */ (function () {
         gameState.setPiece(current, null);
         gameState.getPiece(maxMove).setPosition(maxMove);
         gameState.updateMoves();
+        return {
+            move: current,
+            piece: gameState.getPiece(maxMove)
+        };
     };
     return AI;
 }());
