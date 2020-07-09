@@ -2,19 +2,25 @@
 exports.__esModule = true;
 exports.Knight = exports.Queen = exports.Bishop = exports.King = exports.Rook = exports.Pawn = exports.Coordinate = exports.Board = exports.AI = exports.BoardUX = void 0;
 var BoardUX = /** @class */ (function () {
-    function BoardUX(size, gameState, bot) {
+    function BoardUX(size, mode, gameState, bot) {
         this.size = size;
+        this.mode = mode;
         if (gameState) {
             this.gameState = gameState;
         }
         else {
             this.gameState = new Board();
         }
-        if (bot) {
-            this.opponent = bot;
+        if (mode) {
+            if (bot) {
+                this.opponent = bot;
+            }
+            else {
+                this.opponent = new AI(1);
+            }
         }
         else {
-            this.opponent = new AI(1);
+            this.move = true;
         }
         this.registerListener();
     }
@@ -112,8 +118,28 @@ var BoardUX = /** @class */ (function () {
                 }
             }
         }
+        if (this.selected != null)
+            this.drawHighlight(document.getElementById("highlight"));
         if (move && piece)
             this.animateMove(move, piece.position, document.getElementById("moved"));
+    };
+    BoardUX.prototype.drawHighlight = function (highlight) {
+        var _this = this;
+        highlight.innerHTML = "";
+        var sqr = document.createElement("div");
+        sqr.setAttribute("style", "z-index: 0; position: fixed; left:" + this.selected.x * this.size / 8 + "px; bottom: " + this.selected.y * this.size / 8 + "px; width: " + this.size / 8 + "px; height: " + this.size / 8 + "px");
+        sqr.style.opacity = "0.5";
+        sqr.style.backgroundColor = "yellow";
+        highlight.appendChild(sqr);
+        this.gameState.getPiece(this.selected).getMoves().forEach(function (move) {
+            var size = _this.size * 38 / 931;
+            var hint = document.createElement("div");
+            hint.setAttribute("style", "z-index: 0; position: fixed; left: " + (move.x * _this.size / 8 + _this.size / 16 - size / 2) + "px; bottom: " + (move.y * _this.size / 8 + _this.size / 16 - size / 2) + "px; width: " + size + "px; height: " + size + "px");
+            hint.style.opacity = "0.2";
+            hint.style.backgroundColor = "black";
+            hint.style.borderRadius = "50%";
+            highlight.appendChild(hint);
+        });
     };
     BoardUX.prototype.animateMove = function (from, to, img) {
         var steps = 50;
@@ -138,7 +164,6 @@ var BoardUX = /** @class */ (function () {
     };
     // Model-view-controller
     BoardUX.prototype.onClick = function (event) {
-        var _this = this;
         document.getElementById("highlight").innerHTML = "";
         var x = Math.floor(8 * event.clientX / this.size);
         var y = Math.floor(8 * (1 - (event.clientY / this.size)));
@@ -149,23 +174,9 @@ var BoardUX = /** @class */ (function () {
         }
         if (Math.min(7, Math.max(0, pos.x)) == pos.x && Math.min(7, Math.max(0, pos.y)) == pos.y && !this.gameState.hasMate(true) && !this.gameState.hasMate(false)) {
             var p = this.gameState.getPiece(pos);
-            if (p != null && p.getColor()) {
+            if (p != null && ((this.opponent != null && p.getColor()) || (this.opponent == null && p.getColor() == this.move))) {
                 this.selected = pos;
-                var highlight_1 = document.getElementById("highlight");
-                var sqr = document.createElement("div");
-                sqr.setAttribute("style", "z-index: 0; position: fixed; left:" + pos.x * this.size / 8 + "px; bottom: " + pos.y * this.size / 8 + "px; width: " + this.size / 8 + "px; height: " + this.size / 8 + "px");
-                sqr.style.opacity = "0.5";
-                sqr.style.backgroundColor = "yellow";
-                highlight_1.appendChild(sqr);
-                this.gameState.getPiece(this.selected).getMoves().forEach(function (move) {
-                    var size = _this.size * 38 / 931;
-                    var hint = document.createElement("div");
-                    hint.setAttribute("style", "z-index: 0; position: fixed; left: " + (move.x * _this.size / 8 + _this.size / 16 - size / 2) + "px; bottom: " + (move.y * _this.size / 8 + _this.size / 16 - size / 2) + "px; width: " + size + "px; height: " + size + "px");
-                    hint.style.opacity = "0.2";
-                    hint.style.backgroundColor = "black";
-                    hint.style.borderRadius = "50%";
-                    highlight_1.appendChild(hint);
-                });
+                this.drawHighlight(document.getElementById("highlight"));
             }
             else if (this.selected != null && this.gameState.getPiece(this.selected) != null) {
                 var hasMove_1 = false;
@@ -176,6 +187,7 @@ var BoardUX = /** @class */ (function () {
                 if (hasMove_1) {
                     this.gameState.setPiece(pos, this.gameState.getPiece(this.selected));
                     this.gameState.setPiece(this.selected, null);
+                    this.selected = null;
                     this.gameState.getPiece(pos).setPosition(pos);
                     this.gameState.updateMoves();
                     this.drawBoard();
@@ -183,8 +195,11 @@ var BoardUX = /** @class */ (function () {
                     if (this.gameState.hasMate(false)) {
                         console.log("Checkmate!");
                     }
-                    else {
+                    else if (this.opponent != null) { // allow for two-player games
                         this.opponentMove();
+                    }
+                    else {
+                        this.move = !this.move;
                     }
                 }
                 else {

@@ -3,18 +3,25 @@ export class BoardUX {
     size: number;
     selected: Coordinate;
     opponent: AI;
+    mode: boolean;
+    move: boolean;
 
-    constructor(size: number, gameState?: Board, bot?: AI) {
+    constructor(size: number, mode: boolean, gameState?: Board, bot?: AI) {
         this.size = size;
+        this.mode = mode;
         if (gameState) {
             this.gameState = gameState;
         } else {
             this.gameState = new Board();
         }
-        if (bot) {
-            this.opponent = bot;
+        if (mode) {
+            if (bot) {
+                this.opponent = bot;
+            } else {
+                this.opponent = new AI(1);
+            }
         } else {
-            this.opponent = new AI(1);
+            this.move = true;
         }
         this.registerListener();
     }
@@ -109,7 +116,27 @@ export class BoardUX {
             }
         }
 
+        if (this.selected != null) this.drawHighlight(document.getElementById("highlight"));
         if (move && piece) this.animateMove(move, piece.position, document.getElementById("moved"));
+    }
+
+    drawHighlight(highlight: HTMLElement) {
+        highlight.innerHTML = "";
+        let sqr = document.createElement("div");
+        sqr.setAttribute("style", "z-index: 0; position: fixed; left:" + this.selected.x * this.size / 8 + "px; bottom: " + this.selected.y * this.size / 8 + "px; width: " + this.size / 8 + "px; height: " + this.size / 8 + "px");
+        sqr.style.opacity = "0.5";
+        sqr.style.backgroundColor = "yellow";
+        highlight.appendChild(sqr);
+
+        this.gameState.getPiece(this.selected).getMoves().forEach((move: Coordinate) => {
+            const size = this.size * 38 / 931;
+            let hint = document.createElement("div");
+            hint.setAttribute("style", "z-index: 0; position: fixed; left: " + (move.x * this.size / 8 + this.size / 16 - size / 2) + "px; bottom: " + (move.y * this.size / 8 + this.size / 16 - size / 2) + "px; width: " + size + "px; height: " + size + "px");
+            hint.style.opacity = "0.2";
+            hint.style.backgroundColor = "black";
+            hint.style.borderRadius = "50%";
+            highlight.appendChild(hint);
+        });
     }
 
     animateMove(from: Coordinate, to: Coordinate, img: HTMLElement) {
@@ -147,25 +174,9 @@ export class BoardUX {
 
         if (Math.min(7, Math.max(0, pos.x)) == pos.x && Math.min(7, Math.max(0, pos.y)) == pos.y && !this.gameState.hasMate(true) && !this.gameState.hasMate(false)) {
             let p: Piece = this.gameState.getPiece(pos);
-            if (p != null && p.getColor()) {
+            if (p != null && ((this.opponent != null && p.getColor()) || (this.opponent == null && p.getColor() == this.move))) {
                 this.selected = pos;
-                let highlight = document.getElementById("highlight");
-                
-                let sqr = document.createElement("div");
-                sqr.setAttribute("style", "z-index: 0; position: fixed; left:" + pos.x * this.size / 8 + "px; bottom: " + pos.y * this.size / 8 + "px; width: " + this.size / 8 + "px; height: " + this.size / 8 + "px");
-                sqr.style.opacity = "0.5";
-                sqr.style.backgroundColor = "yellow";
-                highlight.appendChild(sqr);
-
-                this.gameState.getPiece(this.selected).getMoves().forEach((move: Coordinate) => {
-                    const size = this.size * 38 / 931;
-                    let hint = document.createElement("div");
-                    hint.setAttribute("style", "z-index: 0; position: fixed; left: " + (move.x * this.size / 8 + this.size / 16 - size / 2) + "px; bottom: " + (move.y * this.size / 8 + this.size / 16 - size / 2) + "px; width: " + size + "px; height: " + size + "px");
-                    hint.style.opacity = "0.2";
-                    hint.style.backgroundColor = "black";
-                    hint.style.borderRadius = "50%";
-                    highlight.appendChild(hint);
-                });
+                this.drawHighlight(document.getElementById("highlight"));
             } else if (this.selected != null && this.gameState.getPiece(this.selected) != null) {
                 let hasMove: boolean = false;
                 this.gameState.getPiece(this.selected).getMoves().forEach(function (move: Coordinate) {
@@ -174,14 +185,17 @@ export class BoardUX {
                 if (hasMove) {
                     this.gameState.setPiece(pos, this.gameState.getPiece(this.selected));
                     this.gameState.setPiece(this.selected, null);
+                    this.selected = null;
                     this.gameState.getPiece(pos).setPosition(pos);
                     this.gameState.updateMoves();
                     this.drawBoard();
                     document.getElementById("highlight").innerHTML = "";
                     if (this.gameState.hasMate(false)) {
                         console.log("Checkmate!");
-                    } else {
+                    } else if (this.opponent != null) { // allow for two-player games
                         this.opponentMove();
+                    } else {
+                        this.move = !this.move;
                     }
                 } else {
                     this.selected = null;

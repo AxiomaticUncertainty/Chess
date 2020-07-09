@@ -3,14 +3,12 @@ exports.__esModule = true;
 var state_1 = require("./state");
 var world = new state_1.Board();
 world.updateMoves();
-var bot = new state_1.AI(1);
-var game = new state_1.BoardUX(Math.min(window.innerHeight, window.innerWidth), world, bot);
+var game = new state_1.BoardUX(Math.min(window.innerHeight, window.innerWidth), single, world);
 game.drawBoard();
 window.onresize = function (e) {
     game.resize(Math.min(window.innerHeight, window.innerWidth));
     game.drawBoard();
 };
-// TODO ADD TWO-PLAYER MODE
 function drawBoard(size, board) {
     var Pieces;
     (function (Pieces) {
